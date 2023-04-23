@@ -1,29 +1,18 @@
 from selenium import webdriver
-from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.common.by import By
 from selenium.common.exceptions import TimeoutException
-import time, json, re, sys, os
-
-folder_path = os.path.join(os.getcwd(), 'profile')
-os.makedirs(folder_path, exist_ok=True)
-
-chrome_profile_path = folder_path
-snap = "https://web.snapchat.com"
+import time, json, sys, os
 
 def retry(msg: str) -> bool:
         retry = input(f"{msg} Would you like to retry? y/n")
         if retry == 'y':
             return True
         else:
-            print('Exiting...')
-            time.sleep(2)
             if sys.platform == "win32":
                 os.system("taskkill /F /IM cmd.exe")
             elif sys.platform in ("linux", "linux2", "darwin"):
                 os.system("kill -9 $(ps -p $PPID -o ppid=)")
-            return False\
+            return False
 
 def save_session_details(driver, file_name: str) -> None:
 
@@ -39,26 +28,32 @@ def save_session_details(driver, file_name: str) -> None:
     }
     with open(os.path.join(folder_path, file_name), "w") as f:
         json.dump(session_details, f)
-    
-options = webdriver.ChromeOptions()
-options.add_argument(f"user-data-dir={chrome_profile_path}")
 
-driver = webdriver.Chrome(options=options)
+def login() -> None:
+    folder_path = os.path.join(os.getcwd(), 'profile')
+    os.makedirs(folder_path, exist_ok=True)
 
-while True:
-                
-    driver.get(snap)
-    time.sleep(5)
-    
-    try:
-        WebDriverWait(driver, 500).until(lambda d: d.current_url == snap)
-    except TimeoutException:
-        if retry("Timeout exceeded."):
-            continue
+    chrome_profile_path = folder_path
+    snap = "https://web.snapchat.com"
 
-    save_session_details(driver, 'session.json')
-    print("Login succesful, session details saved.")
-    time.sleep(10)
-    driver.quit()
-    break
+    options = webdriver.ChromeOptions()
+    options.add_argument(f"user-data-dir={chrome_profile_path}")
+    driver = webdriver.Chrome(options=options)
 
+    while True:
+                    
+        driver.get(snap)
+        time.sleep(5)
+        
+        try:
+            WebDriverWait(driver, 500).until(lambda d: snap in str(d.current_url))
+        except TimeoutException:
+            if retry("Timeout exceeded."):
+                continue
+
+        print('check')
+        save_session_details(driver, 'session.json')
+        print("Login succesful, session details saved.")
+        time.sleep(5)
+        driver.quit()
+        break

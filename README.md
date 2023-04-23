@@ -1,2 +1,2 @@
 # snap-gpt
-Automate your snapchat interactions using GPT-4
+Automate your Snapchat interactions using GPT-4
