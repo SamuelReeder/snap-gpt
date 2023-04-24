@@ -4,7 +4,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.keys import Keys
 from selenium.common.exceptions import TimeoutException
-import time
+import time, traceback
 
 class SnapAPI(Manager):
     """
@@ -68,9 +68,11 @@ class SnapAPI(Manager):
         Full process for updating a conversation
         """
         messages = self.get_messages(name)
-        if len(messages) != 0:
-            reply = self.generate_message(messages)
+        if len(messages) != 0 and not self.is_convo_over(messages):
+            reply = self.generate_message(messages, name)
             self.send_message(reply)
+        else:
+            self._archive[name]["context"] = []
         self.close_conversation(name)
         
     def changed(self) -> bool:
@@ -82,22 +84,28 @@ class SnapAPI(Manager):
         messages = [str(i.text) for i in self._driver.find_elements(by=By.XPATH, value='//div[contains(@class, "ovUsZ")]//*[contains(@class, "GQKvA")]')]
         
         changed = False
-        for i in range(len(names)):
+        for i in range(min(len(self._order), len(messages), len(names))):
             try:
                 if self._order[i] != names[i]:
-                    self._order.remove(names[i])
+                    if names[i] in self._order:
+                        self._order.remove(names[i])
                     self._order.insert(i, names[i])
-                    self._archive[names[i]]["subtext"] = messages[i]
-                    if 'New' in messages[i]:
+                    if names[i] not in self._archive:
+                        self._archive[names[i]] = {"status": False, "subtext": messages[i], "context": []}
+                    else:
+                        self._archive[names[i]]["subtext"] = messages[i]
+                    if 'New Chat' in messages[i]:
                         self._archive[names[i]]["status"] = True
                         changed = True
+                    else:
+                        self._archive[names[i]]["status"] = False
                 elif self._archive[names[i]]["subtext"] != messages[i]:
                     self._archive[names[i]]["subtext"] = messages[i]
-                    if 'New' in messages[i]:
+                    if 'New Chat' in messages[i]:
                         self._archive[names[i]]["status"] = True
                         changed = True
             except IndexError as e:
-                print(e)
+                traceback.print_exc()
                 
         return changed
     
@@ -112,24 +120,25 @@ class SnapAPI(Manager):
         
         for i in range(len(names)):
             self._order.append(names[i])
-            self._archive[names[i]] = {"status": False, "subtext": messages[i], "position": i}
+            self._archive[names[i]] = {"status": False, "subtext": messages[i], "context": []}
 
         print(self._archive)        
         print(self._order)
-        wait = WebDriverWait(self._driver, 10)
+        wait = WebDriverWait(self._driver, 1)
         while True:
-            try:
+            time.sleep(10)
+            
+            try:                
                 wait.until(lambda _: self.changed())
 
-                print('hey')
                 for key in self._archive:
                     if self._archive[key]["status"]:
-                        print(key)
                         self.update_conversation(key)
                         self._archive[key]["status"] = False
+                        self._archive[key]["subtext"] = "Delivered"
                     # else:
                     #     break
-                time.sleep(2)
+                
                 
             except TimeoutException as e:
-                print(f"Error occurred: {e}")
+                print("Resetting")

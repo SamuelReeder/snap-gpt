@@ -52,30 +52,46 @@ class Manager(ABC):
         pass
     
     def wait(self) -> None:
-        self._driver.implicitly_wait(10) 
+        self._driver.implicitly_wait(20) 
 
-    def generate_message(self, context: list[str]) -> str:
+    def generate_message(self, context: list[str], name: str) -> str:
         messages = "\n".join(context)
-        response = openai.ChatCompletion.create(
-            model=self._model,
-            messages=[
-                {"role": "system", "content": self._gpt_preset},
-                {"role": "user", "content": messages},
-            ],
-        )
+        
+        past = self._archive[name]["context"]
+        new_context = ""
+        if past:
+            new_context = f"\n\nThe following is the context of this conversation, you are talking to {name}. The last message was from you."
+            for i in past:
+                new_context += '\n\n' + i
+        
+        while True:
+            try:
+                response = openai.ChatCompletion.create(
+                    model=self._model,
+                    messages=[
+                        {"role": "system", "content": self._gpt_preset + new_context},
+                        {"role": "user", "content": messages},
+                    ],
+                )
+                break
+            except Exception as e:
+                print(e)
+        
+        reply = response["choices"][0]["message"]["content"]
+        self._archive[name]["context"].extend([messages, reply])
+        return str(reply).lower()
 
-        return response["choices"][0]["message"]["content"]
-
-    def is_convo_over(self, message) -> bool:
+    def is_convo_over(self, messages: list[str]) -> bool:
+        message = "\n".join(messages)
         response = openai.ChatCompletion.create(
             model=self._model,
             messages=[
                 {
                     "role": "system",
-                    "content": "Reply True or False for the following questions.",
+                    "content": "Reply True or False or Unsure for the following questions.",
                 },
-                {"role": "user", "content": f"Does {message} suggest a conversation has ended?"},
+                {"role": "user", "content": f"Does '{message}' suggest a conversation has ended?"},
             ],
         )
-
+        print(response["choices"][0]["message"]["content"].lower())
         return "true" in response["choices"][0]["message"]["content"].lower()
