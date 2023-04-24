@@ -29,12 +29,11 @@ def save_session_details(driver, file_name: str) -> None:
     with open(os.path.join(folder_path, file_name), "w") as f:
         json.dump(session_details, f)
 
-def login() -> None:
+def login(url: str, endpoint: str) -> None:
     folder_path = os.path.join(os.getcwd(), 'profile')
     os.makedirs(folder_path, exist_ok=True)
 
     chrome_profile_path = folder_path
-    snap = "https://web.snapchat.com"
 
     options = webdriver.ChromeOptions()
     options.add_argument(f"user-data-dir={chrome_profile_path}")
@@ -42,11 +41,11 @@ def login() -> None:
 
     while True:
                     
-        driver.get(snap)
+        driver.get(url)
         time.sleep(5)
         
         try:
-            WebDriverWait(driver, 500).until(lambda d: snap in str(d.current_url))
+            WebDriverWait(driver, 500).until(lambda d: endpoint in str(d.current_url))
         except TimeoutException:
             if retry("Timeout exceeded."):
                 continue
